@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { StreamCall, StreamTheme } from '@stream-io/video-react-sdk';
 import { useParams } from 'next/navigation';
@@ -16,6 +16,38 @@ const MeetingPage = () => {
   const { isLoaded, user } = useUser();
   const { call, isCallLoading } = useGetCallById(id);
   const [isSetupComplete, setIsSetupComplete] = useState(false);
+  const [transcript, setTranscript] = useState('');
+  const [isCaptioning, setIsCaptioning] = useState(false);
+
+  useEffect(() => {
+    if (!isSetupComplete || !isCaptioning) return;
+
+    let recognition: SpeechRecognition | null = null;
+
+    if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+      const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition = new SpeechRecognitionConstructor();
+      
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onresult = (event) => {
+        let currentTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          currentTranscript += event.results[i][0].transcript;
+        }
+        setTranscript(currentTranscript);
+      };
+
+      recognition.start();
+    }
+
+    return () => {
+      if (recognition) {
+        recognition.stop();
+      }
+    };
+  }, [isSetupComplete, isCaptioning]);
 
   if (!isLoaded || isCallLoading) return <Loader />;
 
@@ -34,11 +66,23 @@ const MeetingPage = () => {
     <main className="h-screen w-full">
       <StreamCall call={call}>
         <StreamTheme>
-
         {!isSetupComplete ? (
           <MeetingSetup setIsSetupComplete={setIsSetupComplete} />
         ) : (
-          <MeetingRoom />
+          <>
+            <MeetingRoom />
+            <button 
+              onClick={() => setIsCaptioning(!isCaptioning)}
+              className="absolute bottom-20 right-4 z-20 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md"
+            >
+              {isCaptioning ? 'Stop Captions' : 'Start Captions'}
+            </button>
+            {isCaptioning && (
+              <div className="absolute top-3/4 left-1/2 transform -translate-x-1/2 max-w-[1000px] bg-black/50 p-4 text-white text-center z-10 rounded-lg">
+                {transcript}
+              </div>
+            )}
+          </>
         )}
         </StreamTheme>
       </StreamCall>
