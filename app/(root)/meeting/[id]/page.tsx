@@ -11,6 +11,9 @@ import Alert from '@/components/Alert';
 import MeetingSetup from '@/components/MeetingSetup';
 import MeetingRoom from '@/components/MeetingRoom';
 
+type SpeechRecognition = any;
+type SpeechRecognitionEvent = any;
+
 const MeetingPage = () => {
   const { id } = useParams();
   const { isLoaded, user } = useUser();
@@ -28,18 +31,20 @@ const MeetingPage = () => {
       const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
       recognition = new SpeechRecognitionConstructor();
       
-      recognition.continuous = true;
-      recognition.interimResults = true;
+      if (recognition) {
+        recognition.continuous = true;
+        recognition.interimResults = true;
 
-      recognition.onresult = (event) => {
-        let currentTranscript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          currentTranscript += event.results[i][0].transcript;
-        }
-        setTranscript(currentTranscript);
-      };
+        recognition.onresult = (event: SpeechRecognitionEvent) => {
+          let currentTranscript = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            currentTranscript += event.results[i][0].transcript;
+          }
+          setTranscript(currentTranscript);
+        };
 
-      recognition.start();
+        recognition.start();
+      }
     }
 
     return () => {
