@@ -1,31 +1,25 @@
-interface Window {
-  SpeechRecognition: typeof SpeechRecognition;
-  webkitSpeechRecognition: typeof SpeechRecognition;
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+  resultIndex: number;
 }
 
-declare class SpeechRecognition extends EventTarget {
+interface SpeechRecognition extends EventTarget {
   continuous: boolean;
   interimResults: boolean;
   onresult: (event: SpeechRecognitionEvent) => void;
-  start(): void;
-  stop(): void;
+  start: () => void;
+  stop: () => void;
 }
 
-interface SpeechRecognitionEvent {
-  resultIndex: number;
-  results: SpeechRecognitionResultList;
+declare global {
+  interface Window {
+    SpeechRecognition: {
+      new(): SpeechRecognition;
+    };
+    webkitSpeechRecognition: {
+      new(): SpeechRecognition;
+    };
+  }
 }
 
-interface SpeechRecognitionResultList {
-  length: number;
-  [index: number]: SpeechRecognitionResult;
-}
-
-interface SpeechRecognitionResult {
-  [index: number]: SpeechRecognitionAlternative;
-  length: number;
-}
-
-interface SpeechRecognitionAlternative {
-  transcript: string;
-} 
+export {}; 
