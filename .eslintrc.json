@@ -4,5 +4,11 @@
     "standard",
     "plugin:tailwindcss/recommended",
     "prettier"
-  ]
+  ],
+  "rules": {
+    "tailwindcss/classnames-order": "warn",
+    "tailwindcss/no-custom-classname": "warn",
+    "tailwindcss/enforces-shorthand": "warn",
+    "object-shorthand": "warn"
+  }
 }
