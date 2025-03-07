@@ -21,6 +21,8 @@ const MeetingPage = () => {
   const [isSetupComplete, setIsSetupComplete] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [isCaptioning, setIsCaptioning] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
 
   useEffect(() => {
     if (!isSetupComplete || !isCaptioning) return;
@@ -54,6 +56,73 @@ const MeetingPage = () => {
     };
   }, [isSetupComplete, isCaptioning]);
 
+  useEffect(() => {
+    if (!call || !isSetupComplete) return;
+
+    const handleCustomEvent = (event: any) => {
+      if (event.type === 'caption') {
+        setTranscript(event.data.text);
+      }
+    };
+
+    call.on('custom', handleCustomEvent);
+
+    return () => {
+      call.off('custom', handleCustomEvent);
+    };
+  }, [call, isSetupComplete]);
+
+  useEffect(() => {
+    if (!isSetupComplete || !isCaptioning || !call) return;
+
+    let mediaRecorder: MediaRecorder | null = null;
+
+    const startRecording = async () => {
+      try {
+        const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        setStream(mediaStream);
+
+        const context = new AudioContext();
+        setAudioContext(context);
+
+        mediaRecorder = new MediaRecorder(mediaStream);
+        mediaRecorder.ondataavailable = async (event) => {
+          const audioData = await event.data.arrayBuffer();
+          
+          try {
+            const response = await fetch('/api/speech-to-text', {
+              method: 'POST',
+              body: audioData,
+            });
+            
+            const data = await response.json();
+            if (data.transcript) {
+              await call.sendCustomEvent({
+                type: 'caption',
+                data: { text: data.transcript }
+              });
+              setTranscript(data.transcript);
+            }
+          } catch (error) {
+            console.error('Error sending audio data:', error);
+          }
+        };
+        
+        mediaRecorder.start(1000);
+      } catch (error) {
+        console.error('Error starting recording:', error);
+      }
+    };
+
+    startRecording();
+
+    return () => {
+      if (mediaRecorder) {
+        mediaRecorder.stop();
+      }
+    };
+  }, [isSetupComplete, isCaptioning, call]);
+
   if (!isLoaded || isCallLoading) return <Loader />;
 
   if (!call) return (
@@ -82,11 +151,9 @@ const MeetingPage = () => {
             >
               {isCaptioning ? 'Stop Captions' : 'Start Captions'}
             </button>
-            {isCaptioning && (
-              <div className="absolute top-3/4 left-1/2 transform -translate-x-1/2 max-w-[1000px] bg-black/50 p-4 text-white text-center z-10 rounded-lg">
-                {transcript}
-              </div>
-            )}
+            <div className="absolute top-3/4 left-1/2 transform -translate-x-1/2 max-w-[1000px] bg-black/50 p-4 text-white text-center z-10 rounded-lg">
+              {transcript}
+            </div>
           </>
         )}
         </StreamTheme>
